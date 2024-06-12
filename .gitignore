@@ -1,0 +1,7 @@
+.env
+test.ipynb
+__pycache__/
+test/
+venv/
+build/
+dist/
