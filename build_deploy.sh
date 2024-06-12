@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # .env 파일의 내용을 읽어 환경 변수로 설정
 if [ -f .env ]; then
   export $(cat .env | xargs)

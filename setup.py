@@ -5,8 +5,16 @@ setup(
     name='aicastle',
     version=read_version(),
     packages=find_packages(include=['aicastle', 'aicastle.*']),
+    include_package_data=True,
+    package_data={
+        'aicastle': ['package_data/*'],
+    },
     install_requiress=[ # 의존성
         # 'tqdm', 'pandas', 'scikit-learn', 
+        'openai',
+        'azure-identity',
+        'boto3',
+        'pillow'
     ],
 
     author='aicastle',

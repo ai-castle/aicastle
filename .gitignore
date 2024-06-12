@@ -1,5 +1,6 @@
 .env
 test.ipynb
+aicastle.egg-info/
 __pycache__/
 test/
 venv/
