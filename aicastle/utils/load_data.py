@@ -5,53 +5,73 @@ import base64
 from io import BytesIO
 
 class ImageLoader:
-    def __init__(self, image_path, image=None, original_format=None):
-        self.image_path = image_path
-        self.image = image if image else self.load_image()
-        self.original_format = original_format if original_format else self.image.format
+    def __init__(self, target, format=None):
+        self.image = self.load_image(target)
+        if not self.image:
+            raise ValueError("이미지를 로드할 수 없습니다.")
+        self.format = format if format else self.image.format
+        self.base64_str = self.get_base64_str()
+        self.base64_str_url = self.get_base64_str_url()
     
-    def load_image(self):
-        if os.path.isfile(self.image_path):
-            image = Image.open(self.image_path)
-        else:
-            response = requests.get(self.image_path)
-            image_data = BytesIO(response.content)
-            image = Image.open(image_data)
-        return image
+    def load_image(self, target):
+        if isinstance(target, Image.Image) :
+            return target
+        elif isinstance(target, str):
+            # 파일 경로에서 로드
+            try :
+                image = Image.open(target)
+                return image
+            except :
+                pass
+            
+            # URL에서 로드
+            try :
+                response = requests.get(target)
+                image_data = BytesIO(response.content)
+                image = Image.open(image_data)
+                return image
+            except :
+                pass
+            
+            # base64 문자열에서 로드
+            try :
+                image_data = BytesIO(base64.b64decode(target))
+                image = Image.open(image_data)
+                return image
+            except :
+                pass
+        else :
+            raise Exception("Invalid target")
     
-    def get_base64(self, format='JPEG'):
+    def get_base64_str(self):
         with BytesIO() as buffer:
-            image = self.convert_image_format(self.image, format)
-            image.save(buffer, format=format)
-            img_str = base64.b64encode(buffer.getvalue())
-        return img_str.decode('utf-8')
+            self.image.save(buffer, format=self.format)
+            base64_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        return base64_str
     
-    def convert_image_format(self, image, format):
-        if format == 'JPEG':
-            return image.convert('RGB')
-        elif format == 'GIF':
-            return image.convert('P', palette=Image.ADAPTIVE)
-        elif format == 'PNG':
-            return image.convert('RGBA')
-        return image
-    
-    def get_original_format(self):
-        return self.original_format
-    
-    def resize(self, width, height):
-        resized_image = self.image.resize((width, height))
-        return ImageLoader(self.image_path, resized_image, self.original_format)
-    
-    def save_image(self, save_path, format=None):
-        if format is None:
-            format = self.original_format
-        image = self.convert_image_format(self.image, format)
-        with BytesIO() as buffer:
-            image.save(buffer, format=format)
-            with open(save_path, 'wb') as f:
-                f.write(buffer.getvalue())
-    
-    def get_data_url(self, format='JPEG'):
-        base64_image = self.get_base64(format)
-        mime_type = f"image/{format.lower()}"
-        return f"data:{mime_type};base64,{base64_image}"
+    def get_base64_str_url(self):
+        mime_type = f"image/{self.format.lower()}"
+        return f"data:{mime_type};base64,{self.base64_str}"
+        
+    def convert(self, format=None, size=None):
+        converted_format = format if format else self.format
+        converted_image = self.image.copy()
+        if converted_format != self.format  :
+            if converted_format == 'JPEG':
+                converted_image = converted_image.convert('RGB')
+            elif converted_format == 'GIF':
+                converted_image = converted_image.convert('P', palette=Image.ADAPTIVE)
+            elif converted_format == 'PNG':
+                converted_image = converted_image.convert('RGBA')
+            else :
+                raise Exception("Invalid format")
+        if size :
+            converted_image = converted_image.resize(size)
+        
+        return ImageLoader(converted_image, format=converted_format)
+
+    def show(self):
+        self.image.show()
+
+    def save_image(self, save_path):
+        self.image.save(save_path, format=self.format)
