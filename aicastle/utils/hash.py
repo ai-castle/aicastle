@@ -4,21 +4,22 @@ import os
 class UnsupportedTypeError(Exception):
     pass
 
-def get_hash(data, prefix="", suffix=""):
+def get_hash(data=None, prefix="", suffix="", **kwargs):
+    # 버전 호환: 이전 버전에서 data 변수가 아닌 text 로 받음
+    if ("text" in kwargs) and (data is None):
+        data=kwargs["text"]
+    
+    # 딕셔너리인 경우, 키를 정렬하여 재귀적으로 처리
     if isinstance(data, dict):
-        # 딕셔너리인 경우, 키를 정렬하여 재귀적으로 처리
         items = sorted((k, get_hash(v)) for k, v in data.items())
         data_string = prefix + str(items) + suffix
+    # 리스트인 경우, 요소를 재귀적으로 처리
     elif isinstance(data, list):
-        # 리스트인 경우, 요소를 재귀적으로 처리
         items = [get_hash(item) for item in data]
         data_string = prefix + str(items) + suffix
-    elif isinstance(data, (str, int, float, bool)):
-        # 기본 타입인 경우, 문자열로 변환
+    # 그 외 타입인 경우, 문자열로 변환
+    else :
         data_string = prefix + str(data) + suffix
-    else:
-        # 기타 자료형인 경우, 예외 발생
-        raise UnsupportedTypeError(f"Unsupported type: {type(data).__name__}")
 
     # 해시값 생성
     encoded_string = data_string.encode('utf-8', errors='ignore')
