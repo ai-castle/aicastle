@@ -53,7 +53,7 @@ class ImageLoader:
         mime_type = f"image/{self.format.lower()}"
         return f"data:{mime_type};base64,{self.base64_str}"
         
-    def convert(self, format=None, size=None):
+    def convert(self, format=None, size=None, max_size=None):
         converted_format = format if format else self.format
         converted_image = self.image.copy()
         if converted_format != self.format  :
@@ -67,7 +67,16 @@ class ImageLoader:
                 raise Exception("Invalid format")
         if size :
             converted_image = converted_image.resize(size)
-        
+        elif max_size:
+            width, height = converted_image.size
+            if max(width, height) > max_size:
+                if width > height:
+                    new_width = max_size
+                    new_height = int((max_size / width) * height)
+                else:
+                    new_height = max_size
+                    new_width = int((max_size / height) * width)
+                converted_image = converted_image.resize((new_width, new_height), Image.ANTIALIAS)
         return ImageLoader(converted_image, format=converted_format)
 
     def show(self):
