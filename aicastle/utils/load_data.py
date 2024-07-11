@@ -76,7 +76,7 @@ class ImageLoader:
                 else:
                     new_height = max_size
                     new_width = int((max_size / height) * width)
-                converted_image = converted_image.resize((new_width, new_height), Image.ANTIALIAS)
+                converted_image = converted_image.resize((new_width, new_height))
         return ImageLoader(converted_image, format=converted_format)
 
     def show(self):
