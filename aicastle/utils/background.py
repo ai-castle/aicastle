@@ -2,7 +2,7 @@ import threading
 import time
 
 ########### Thread ###########
-def run_thread(func, **kwargs):
+def run_thread(func, *args, _start=True, **kwargs):
     """
     주어진 함수를 백그라운드 스레드에서 실행하고, 결과를 result_container에 저장합니다.
     
@@ -15,10 +15,10 @@ def run_thread(func, **kwargs):
     
     def wrapper():
         try:
-            result = func(**kwargs)
+            result = func(*args, **kwargs)
             result_container['result'] = result
-        except Exception as e:
-            result_container['error'] = str(e)
+        except Exception as error:
+            result_container['error'] = error
         finally:
             result_container['done'] = True
 
@@ -30,12 +30,13 @@ def run_thread(func, **kwargs):
     thread.daemon = True
     
     # 스레드 시작
-    thread.start()
+    if _start :
+        thread.start()
     
     return result_container
 
 
-def run_thread_multi(func, kwargs_list=[], sleep=0.05):
+def run_thread_multi(func, num_workers=100, args_list=None, kwargs_list=None, _sleep=0.05):
     """
     동일한 함수를 여러 인자로 백그라운드 스레드에서 여러 번 실행하고, 결과를 저장합니다.
     
@@ -45,27 +46,70 @@ def run_thread_multi(func, kwargs_list=[], sleep=0.05):
     :return: 각 호출의 결과와 상태를 담는 딕셔너리
     """
     
-    result_container = {'done': False, 'result': None, 'error': None}
+    if (args_list is None) and (kwargs_list is None):
+        raise Exception("Either args_list or kwargs_list must be provided.")
+    elif isinstance(args_list, list) and isinstance(kwargs_list, list) :
+        if not len(args_list) == len(kwargs_list):
+            raise Exception("The lengths of args_list and kwargs_list must be equal.")
+        if len(args_list) == 0 :
+            raise Exception("The provided args_list and kwargs_list cannot be empty.")
+    elif kwargs_list is None :
+        if len(args_list) == 0 :
+            raise Exception("The provided args_list cannot be empty.")
+        else :
+            kwargs_list = [{} for _ in range(len(args_list))]
+    elif args_list is None :
+        if len(kwargs_list) == 0 :
+            raise Exception("The provided kwargs_list cannot be empty.")
+        else :
+            args_list = [[] for _ in range(len(kwargs_list))]
     
+    result_container = {'done': False, 'result': None, 'error': None, 'done_count':0, 'done_rate':0}
+
+    def thread_control(result, num_workers = num_workers):
+        result_len = len(result)
+        working_idx_list = []
+        for target_idx in range(result_len):
+            while True :
+                for working_idx in working_idx_list:
+                    working_item = result[working_idx]
+                    if working_item['done'] :
+                        working_idx_list.remove(working_idx)
+                if len(working_idx_list) < num_workers :
+                    target_item = result[target_idx]
+                    target_item['thread'].start()
+                    working_idx_list.append(target_idx)
+                    break
+
     def wrapper():
         try:
             result = []
-            for kwargs in kwargs_list:
-                result.append(run_thread(func, **kwargs))
+            for args, kwargs in zip(args_list, kwargs_list):
+                result.append(run_thread(func, *args, _start=False, **kwargs))
             result_container['result'] = result
 
+            run_thread(thread_control, result)
+            
             while True:
-                done = True
+                result_len = len(result)
+                done_count = 0
                 for a_result in result:
-                    if not a_result['done']:
-                        done = False
-                        break
-                if done:
+                    if a_result['done']:
+                        done_count +=1
+                        
+                if done_count == result_len:
                     result_container['done'] = True
+                    result_container['done_count'] = done_count
+                    result_container['done_rate'] = 1
                     break
-                time.sleep(sleep)
-        except Exception as e:
-            result_container['error'] = str(e)
+                else :
+                    result_container['done_count'] = done_count
+                    result_container['done_rate'] = done_count / result_len
+                     
+                time.sleep(_sleep)
+                
+        except Exception as error:
+            result_container['error'] = error
         finally:
             result_container['done'] = True
    
